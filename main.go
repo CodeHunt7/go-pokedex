@@ -6,16 +6,20 @@ import (
 	"os"
 )
 
+// Структура для CLI команд
 type cliCommand struct {
 	name        string
 	description string
-	callback    func() error
+	callback    func(*Config) error
 }
 
 var commands map[string]cliCommand
 
 func main() {
-	
+	// Делаем конфиг
+	cfg := &Config{}
+
+	// Инициализируем команды
 	commands = map[string]cliCommand{
 		"exit": {
 			name:        "exit",
@@ -26,6 +30,16 @@ func main() {
 			name: "help",
 			description: "Displays a help message",
 			callback: commandHelp,
+		},
+		"map": {
+			name: "map",
+			description: "Displays the names of 20 location areas",
+			callback: commandMap,
+		},
+		"mapb": {
+			name: "mapb",
+			description: "Displays the names of the previous 20 location areas",
+			callback: commandMapBack,
 		},
 	}
 	
@@ -40,7 +54,7 @@ func main() {
 			//fmt.Printf("Your command was: %s\n", firstWord)
 
 			if cmd, exists := commands[firstWord]; exists {
-				if err := cmd.callback(); err != nil {
+				if err := cmd.callback(cfg); err != nil {
 					fmt.Fprintf(os.Stderr, "Error executing command %q: %v\n", firstWord, err)
 				}
 			} else {
