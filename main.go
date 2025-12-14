@@ -4,6 +4,9 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"time"
+
+	"github.com/CodeHunt7/go-pokedex/internal/pokecache"
 )
 
 // Структура для CLI команд
@@ -17,7 +20,10 @@ var commands map[string]cliCommand
 
 func main() {
 	// Делаем конфиг
-	cfg := &Config{}
+	cache := pokecache.NewCache(1 * time.Minute)
+	cfg := &Config{
+		pokeCache: cache,
+	}
 
 	// Инициализируем команды
 	commands = map[string]cliCommand{

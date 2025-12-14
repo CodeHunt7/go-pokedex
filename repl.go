@@ -7,12 +7,15 @@ import (
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/CodeHunt7/go-pokedex/internal/pokecache"
 )
 
 // Структура для хранения состояния ссылок на API
 type Config struct {
-    Next     string
-    Previous string
+    Next      string
+    Previous  string
+    pokeCache pokecache.Cache
 }
 
 // Структура для распаковки JSON ответа от PokeAPI
@@ -48,7 +51,7 @@ func commandExit(cfg *Config) error {
 }
 
 func commandHelp(cfg *Config) error {
-    fmt.Println("Welcome to the Pokedex!")
+    fmt.Println("\nWelcome to the Pokedex!")
     fmt.Println("Usage:")
     for _, cmd := range commands {
         fmt.Printf("%s: %s\n", cmd.name, cmd.description)
@@ -61,23 +64,36 @@ func commandMap(cfg *Config) error {
     // Инициализируем ссылки
     NextURL := cfg.Next
     if NextURL == "" { 
-        NextURL = "https://pokeapi.co/api/v2/location-area/"
+        NextURL = "https://pokeapi.co/api/v2/location-area/?offset=0&limit=20"
     }
 
-    // Получаем JSON ответ от PokeAPI
-    res, err := http.Get(NextURL)
-    if err != nil { 
-        return err
+    // Создаем переменные для тела ответа и ошибки
+    var body []byte
+    var err error
+
+    // Проверяем есть ли ответ в кеше
+    cachedResponse, inCache := cfg.pokeCache.Get(NextURL)
+    
+    if !inCache { // В кеше нет, делаем запрос
+        // Получаем JSON ответ от PokeAPI
+        res, err := http.Get(NextURL)
+        if err != nil { 
+            return err
+        }
+        body, err = io.ReadAll(res.Body)
+        res.Body.Close()
+        if res.StatusCode > 299 {
+            return fmt.Errorf("response failed with status code: %d and\nbody: %s", res.StatusCode, body)
+        }
+        if err != nil {
+            return err
+        }
+        //fmt.Println(body)
+        //fmt.Println("FROM API!")
+    } else { // В кеше есть, используем его
+        body = cachedResponse
+        //fmt.Println("FROM CACHE!")
     }
-    body, err := io.ReadAll(res.Body)
-    res.Body.Close()
-    if res.StatusCode > 299 {
-		return fmt.Errorf("response failed with status code: %d and\nbody: %s", res.StatusCode, body)
-	}
-    if err != nil {
-        return err
-    }
-    //fmt.Println(body)
     
     // Распаковываем JSON в стуктуру
     var locations LocationAreaResponse
@@ -93,6 +109,7 @@ func commandMap(cfg *Config) error {
     } else {
         cfg.Previous = ""
     }
+    cfg.pokeCache.Add(NextURL, body)
 
     // Выводим ответ в консоль
     fmt.Println()
@@ -105,7 +122,6 @@ func commandMap(cfg *Config) error {
 }
 
 func commandMapBack(cfg *Config) error {
-    
     // Инициализируем ссылки
     PrevURL := cfg.Previous
     if PrevURL == "" {
@@ -113,18 +129,32 @@ func commandMapBack(cfg *Config) error {
         return nil
     }
 
-    // Получаем JSON ответ от PokeAPI
-    res, err := http.Get(PrevURL)
-    if err != nil { 
-        return err
-    }
-    body, err := io.ReadAll(res.Body)
-    res.Body.Close()
-    if res.StatusCode > 299 {
-		return fmt.Errorf("response failed with status code: %d and\nbody: %s", res.StatusCode, body)
-	}
-    if err != nil {
-        return err
+    // Создаем переменные для тела ответа и ошибки
+    var body []byte
+    var err error
+
+    // Проверяем есть ли в кеше
+    cachedResponse, inCache := cfg.pokeCache.Get(PrevURL)
+    
+    if !inCache { // В кеше нет, делаем запрос
+        // Получаем JSON ответ от PokeAPI
+        res, err := http.Get(PrevURL)
+        if err != nil { 
+            return err
+        }
+        body, err = io.ReadAll(res.Body)
+        res.Body.Close()
+        if res.StatusCode > 299 {
+            return fmt.Errorf("response failed with status code: %d and\nbody: %s", res.StatusCode, body)
+        }
+        if err != nil {
+            return err
+        }
+        // fmt.Println("FROM API!")
+        // fmt.Println(PrevURL)
+    } else { // В кеще есть, используем его
+        body = cachedResponse
+        // fmt.Println("FROM CACHE!")
     }
 
     // Распаковываем JSON в стуктуру
@@ -141,6 +171,7 @@ func commandMapBack(cfg *Config) error {
     } else {
         cfg.Previous = ""
     }
+    cfg.pokeCache.Add(PrevURL, body)
 
     // Выводим ответ в консоль
     fmt.Println()
