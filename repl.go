@@ -18,7 +18,7 @@ type Config struct {
     pokeCache pokecache.Cache
 }
 
-// Структура для распаковки JSON ответа от PokeAPI
+// Структура для распаковки JSON ответа от PokeAPI по списку локаций
 type LocationAreaResponse struct {
 	Count    int    `json:"count"`
 	Next     string `json:"next"`
@@ -27,6 +27,60 @@ type LocationAreaResponse struct {
 		Name string `json:"name"`
 		URL  string `json:"url"`
 	} `json:"results"`
+}
+
+// Структура для распаковки JSON ответа от PokeAPI по конкретной локации
+type ConcreteLocationResponce struct {
+	EncounterMethodRates []struct {
+		EncounterMethod struct {
+			Name string `json:"name"`
+			URL  string `json:"url"`
+		} `json:"encounter_method"`
+		VersionDetails []struct {
+			Rate    int `json:"rate"`
+			Version struct {
+				Name string `json:"name"`
+				URL  string `json:"url"`
+			} `json:"version"`
+		} `json:"version_details"`
+	} `json:"encounter_method_rates"`
+	GameIndex int `json:"game_index"`
+	ID        int `json:"id"`
+	Location  struct {
+		Name string `json:"name"`
+		URL  string `json:"url"`
+	} `json:"location"`
+	Name  string `json:"name"`
+	Names []struct {
+		Language struct {
+			Name string `json:"name"`
+			URL  string `json:"url"`
+		} `json:"language"`
+		Name string `json:"name"`
+	} `json:"names"`
+	PokemonEncounters []struct {
+		Pokemon struct {
+			Name string `json:"name"`
+			URL  string `json:"url"`
+		} `json:"pokemon"`
+		VersionDetails []struct {
+			EncounterDetails []struct {
+				Chance          int           `json:"chance"`
+				ConditionValues []interface{} `json:"condition_values"`
+				MaxLevel        int           `json:"max_level"`
+				Method          struct {
+					Name string `json:"name"`
+					URL  string `json:"url"`
+				} `json:"method"`
+				MinLevel int `json:"min_level"`
+			} `json:"encounter_details"`
+			MaxChance int `json:"max_chance"`
+			Version   struct {
+				Name string `json:"name"`
+				URL  string `json:"url"`
+			} `json:"version"`
+		} `json:"version_details"`
+	} `json:"pokemon_encounters"`
 }
 
 func cleanInput(text string) []string {
@@ -44,13 +98,13 @@ func cleanInput(text string) []string {
     return output
 }
 
-func commandExit(cfg *Config) error {
+func commandExit(cfg *Config, parameters []string) error {
     fmt.Println("Closing the Pokedex... Goodbye!")
     os.Exit(0)
     return nil
 }
 
-func commandHelp(cfg *Config) error {
+func commandHelp(cfg *Config, parameters []string) error {
     fmt.Println("\nWelcome to the Pokedex!")
     fmt.Println("Usage:")
     for _, cmd := range commands {
@@ -60,7 +114,7 @@ func commandHelp(cfg *Config) error {
     return nil
 }
 
-func commandMap(cfg *Config) error {
+func commandMap(cfg *Config, parameters []string) error {
     // Инициализируем ссылки
     NextURL := cfg.Next
     if NextURL == "" { 
@@ -102,7 +156,7 @@ func commandMap(cfg *Config) error {
         return err
     }
 
-    // Обновляем глобальный конфиг
+    // Обновляем глобальный конфиг и кеш
     cfg.Next = locations.Next
     if locations.Previous != nil {
         cfg.Previous = locations.Previous.(string)
@@ -114,14 +168,14 @@ func commandMap(cfg *Config) error {
     // Выводим ответ в консоль
     fmt.Println()
     for _, location := range locations.Results {
-        fmt.Println(location.Name)
+        fmt.Printf(" - %s\n", location.Name)
     }
     fmt.Println()
 
     return nil
 }
 
-func commandMapBack(cfg *Config) error {
+func commandMapBack(cfg *Config, parameters []string) error {
     // Инициализируем ссылки
     PrevURL := cfg.Previous
     if PrevURL == "" {
@@ -176,7 +230,61 @@ func commandMapBack(cfg *Config) error {
     // Выводим ответ в консоль
     fmt.Println()
     for _, location := range locations.Results {
-        fmt.Println(location.Name)
+        fmt.Printf(" - %s\n", location.Name)
+    }
+    fmt.Println()
+
+    return nil
+}
+
+func commandExplore(cfg *Config, parameters []string) error {
+    // инициализируем ссылку
+    if len(parameters) == 0 {
+        fmt.Println("Please provide a location area name to explore.")
+        return nil
+    }
+    exploreURL := fmt.Sprintf("https://pokeapi.co/api/v2/location-area/%s/", parameters[0])
+
+    // Создаем переменные для тела ответа и ошибки
+    var body []byte
+    var err error
+
+    // проверяем есть ли в кеше
+    cachedResponse, inCache := cfg.pokeCache.Get(exploreURL)
+    if !inCache { // В кеше нет, делаем запрос
+        // Получаем JSON ответ от PokeAPI
+        res, err := http.Get(exploreURL)
+        if err != nil { 
+            return err
+        }
+        body, err = io.ReadAll(res.Body)
+        res.Body.Close()
+        if res.StatusCode > 299 {
+            return fmt.Errorf("response failed with status code: %d and\nbody: %s", res.StatusCode, body)
+        }
+        if err != nil {
+            return err
+        }
+    } else { // В кеще есть, используем его
+        body = cachedResponse
+    }
+
+    // Распаковываем JSON в стуктуру
+    var locationInfo ConcreteLocationResponce
+    err = json.Unmarshal(body, &locationInfo)
+    if err != nil {
+        return err
+    }
+
+    // Обновляем глобальный кеш в конфиге
+    cfg.pokeCache.Add(exploreURL, body)
+
+    // Выводим ответ в консоль
+    fmt.Println()
+    fmt.Printf("Exploring %s...\n", parameters[0])
+    fmt.Println("Found Pokemon:")
+    for _, pokemonInfo := range locationInfo.PokemonEncounters {
+        fmt.Printf(" - %s\n", pokemonInfo.Pokemon.Name)
     }
     fmt.Println()
 

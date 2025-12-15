@@ -13,9 +13,10 @@ import (
 type cliCommand struct {
 	name        string
 	description string
-	callback    func(*Config) error
+	callback    func(*Config, []string) error
 }
 
+// Создаем переменную для всех команд
 var commands map[string]cliCommand
 
 func main() {
@@ -47,21 +48,39 @@ func main() {
 			description: "Displays the names of the previous 20 location areas",
 			callback: commandMapBack,
 		},
+		"explore": {
+			name: "explore",
+			description: "See a list of all the Pokémon located in location",
+			callback: commandExplore,
+		},
 	}
 	
+	// Создаем сканнер для чтения ввода
 	scanner := bufio.NewScanner(os.Stdin)
 	
+	// Основной бесконечный цикл REPL
 	for {
 		fmt.Print("Pokedex > ")
 
 		if scanner.Scan() {
-			userInput := scanner.Text()
-			firstWord := cleanInput(userInput)[0]
-			//fmt.Printf("Your command was: %s\n", firstWord)
+			// читаем ввод, если пустой перезапуск цикла
+			userInput := cleanInput(scanner.Text())
+			if len(userInput) == 0 {
+				fmt.Println("Type a command, please. 'Help' to see available commands.")
+				continue
+			}
 
-			if cmd, exists := commands[firstWord]; exists {
-				if err := cmd.callback(cfg); err != nil {
-					fmt.Fprintf(os.Stderr, "Error executing command %q: %v\n", firstWord, err)
+			// вычленяем команду и проверяем наличие параметров
+			commandName := userInput[0]
+			arguments := []string{}
+			if len(userInput) > 1 {
+				arguments = userInput[1:] // Берем все, что после команды
+			}
+
+			// Ищем команду и вызываем
+			if cmd, exists := commands[commandName]; exists {
+				if err := cmd.callback(cfg, arguments); err != nil {
+					fmt.Fprintf(os.Stderr, "Error executing %q command: %v\n", commandName, err)
 				}
 			} else {
 				fmt.Println("Unknown command")
