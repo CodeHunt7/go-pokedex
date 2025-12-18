@@ -24,6 +24,7 @@ func main() {
 	cache := pokecache.NewCache(1 * time.Minute)
 	cfg := &Config{
 		pokeCache: cache,
+		Pokedex: make(map[string]PokemonResponse),
 	}
 
 	// Инициализируем команды
@@ -52,6 +53,11 @@ func main() {
 			name: "explore",
 			description: "See a list of all the Pokémon located in location",
 			callback: commandExplore,
+		},
+		"catch": {
+			name: "catch",
+			description: "Use pokemon name and try to catch it",
+			callback: commandCatch,
 		},
 	}
 	
