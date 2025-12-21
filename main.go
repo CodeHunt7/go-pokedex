@@ -59,6 +59,11 @@ func main() {
 			description: "Use pokemon name and try to catch it",
 			callback: commandCatch,
 		},
+		"inspect": {
+			name: "inspect",
+			description: "View details about caught pokemon",
+			callback: commandInspect,
+		},
 	}
 	
 	// Создаем сканнер для чтения ввода

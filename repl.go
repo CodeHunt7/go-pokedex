@@ -403,7 +403,7 @@ func commandExit(cfg *Config, parameters []string) error {
 }
 
 func commandHelp(cfg *Config, parameters []string) error {
-    fmt.Println("\nWelcome to the Pokedex!")
+    fmt.Printf("\nWelcome to the Pokedex!\n\n")
     fmt.Println("Usage:")
     for _, cmd := range commands {
         fmt.Printf("%s: %s\n", cmd.name, cmd.description)
@@ -641,11 +641,11 @@ func commandCatch(cfg *Config, parameters []string) error {
     throwResult := rand.Intn(pokemonInfo.BaseExperience)
     
     if throwResult < ThrowingDifficulty { // поймал
-        fmt.Printf("%s was caught!\n", pokemonInfo.Name)
+        fmt.Printf("%s was caught!\n\n", pokemonInfo.Name)
         cfg.Pokedex[pokemonInfo.Name] = pokemonInfo
         //fmt.Printf("Deb: \n%d - base exp \n%d - throw res \n%d - defficulty\n", pokemonInfo.BaseExperience, throwResult, ThrowingDifficulty)
     } else { // не поймал
-        fmt.Printf("%s escaped!\n", pokemonInfo.Name)
+        fmt.Printf("%s escaped!\n\n", pokemonInfo.Name)
         //fmt.Printf("Deb: \n%d - base exp \n%d - throw res \n%d - defficulty\n", pokemonInfo.BaseExperience, throwResult, ThrowingDifficulty)
     }
 
@@ -653,4 +653,31 @@ func commandCatch(cfg *Config, parameters []string) error {
     cfg.pokeCache.Add(catchURL, body)
 
     return nil
+}
+
+func commandInspect(cfg *Config, parameters []string) error {
+	
+	// Проверяем, пойман ли этот покемон
+	thisPokemon, exists := cfg.Pokedex[parameters[0]];
+	
+	if !exists { // не пойман
+		fmt.Printf("you have not caught that pokemon\n")
+		return nil
+	}
+	
+	// пойман, значит выдаем инфу
+	fmt.Printf("\nName: %s\n", thisPokemon.Name)
+	fmt.Printf("Height: %d\n", thisPokemon.Height)
+	fmt.Printf("Weight: %d\n", thisPokemon.Weight)
+	fmt.Println("Stats:")
+	for _, thisStat := range thisPokemon.Stats {
+		fmt.Printf("  -%s: %d\n", thisStat.Stat.Name, thisStat.BaseStat)
+	}
+	fmt.Println("Types:")
+	for _, thisType := range thisPokemon.Types {
+		fmt.Printf("  -%s\n", thisType.Type.Name)
+	}
+	fmt.Println()
+
+	return nil
 }
