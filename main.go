@@ -64,6 +64,11 @@ func main() {
 			description: "View details about caught pokemon",
 			callback: commandInspect,
 		},
+		"pokedex": {
+			name: "pokedex",
+			description: "View all caught pokemon",
+			callback: commandPokedex,
+		},
 	}
 	
 	// Создаем сканнер для чтения ввода

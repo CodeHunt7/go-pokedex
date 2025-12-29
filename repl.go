@@ -681,3 +681,20 @@ func commandInspect(cfg *Config, parameters []string) error {
 
 	return nil
 }
+
+func commandPokedex(cfg *Config, parameters []string) error {
+
+	// Проверяем, есть ли пойманные покемоны
+	if len(cfg.Pokedex) == 0 {
+		fmt.Println("You have not caught any pokemon yet.")
+		return nil
+	}
+	
+	// Выводим всех пойманных покемонов
+	fmt.Println("Your Pokedex:")
+	for pokenomName := range cfg.Pokedex {
+		fmt.Printf("  - %s\n", pokenomName) 
+	}
+	
+	return nil
+}
